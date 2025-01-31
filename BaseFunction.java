@@ -1,24 +1,20 @@
+```java
 package com.sismics.reader.rest.constant;
 
-/**
- * Base functions.
- *
- * @author jtremeaux 
- */
 public enum BaseFunction {
 
-    /**
-     * Allows the user to use the admin fonctions.
-     */
-    ADMIN,
+    GRANT_ADMIN_FUNCTIONS("Allows the user to use the admin functions"),
+    CHANGE_PASSWORD("Allows the user to change his password"),
+    IMPORT_DATA("Allows the user to import OPML / Takeout data");
 
-    /**
-     * Allows the user to change his password. 
-     */
-    PASSWORD,
+    private final String description;
 
-    /**
-     * Allows the user to import OPML / Takeout data.
-     */
-    IMPORT,
+    BaseFunction(String description) {
+        this.description = description;
+    }
+
+    public String getDescription() {
+        return description;
+    }
 }
+```
