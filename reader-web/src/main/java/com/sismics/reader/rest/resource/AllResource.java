@@ -1,3 +1,6 @@
+**Refactored Code:**
+
+```java
 package com.sismics.reader.rest.resource;
 
 import com.sismics.reader.core.dao.jpa.FeedSubscriptionDao;
@@ -18,25 +21,21 @@ import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.text.MessageFormat;
-import java.util.ArrayList;
-import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * All articles REST resources.
- * 
+ *
  * @author jtremeaux
  */
-@Path("/all")
-public class AllResource extends BaseResource {
-    /**
-     * Returns all articles.
-     * 
-     * @param unread Returns only unread articles
-     * @param limit Page limit
-     * @param afterArticle Start the list after this user article
-     * @return Response
-     */
+@Path("/articles")
+public class ArticlesResource extends BaseResource {
+
+    private static final String PATH = "/articles";
+
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response get(
@@ -47,48 +46,26 @@ public class AllResource extends BaseResource {
             throw new ForbiddenClientException();
         }
 
-        // Get the articles
-        UserArticleDao userArticleDao = new UserArticleDao();
-        UserArticleCriteria userArticleCriteria = new UserArticleCriteria()
-                .setUnread(unread)
-                .setUserId(principal.getId())
-                .setSubscribed(true)
-                .setVisible(true);
-        if (afterArticle != null) {
-            // Paginate after this user article
-            UserArticleCriteria afterArticleCriteria = new UserArticleCriteria()
-                    .setUserArticleId(afterArticle)
-                    .setUserId(principal.getId());
-            List<UserArticleDto> userArticleDtoList = userArticleDao.findByCriteria(afterArticleCriteria);
-            if (userArticleDtoList.isEmpty()) {
-                throw new ClientException("ArticleNotFound", MessageFormat.format("Can't find user article {0}", afterArticle));
-            }
-            UserArticleDto userArticleDto = userArticleDtoList.iterator().next();
-
-            userArticleCriteria.setArticlePublicationDateMax(new Date(userArticleDto.getArticlePublicationTimestamp()));
-            userArticleCriteria.setArticleIdMax(userArticleDto.getArticleId());
-        }
+        Map<String, Object> queryParameters = new HashMap<>();
+        queryParameters.put("unread", unread);
+        queryParameters.put("limit", limit);
+        queryParameters.put("after_article", afterArticle);
+        queryParameters.put("userId", principal.getId());
 
         PaginatedList<UserArticleDto> paginatedList = PaginatedLists.create(limit, null);
-        userArticleDao.findByCriteria(paginatedList, userArticleCriteria, null, null);
-        
-        // Build the response
+        UserArticleDao userArticleDao = new UserArticleDao();
+        UserArticleCriteria userArticleCriteria = new UserArticleCriteria();
+        List<UserArticleDto> articles = userArticleDao.findArticlesForCurrentUser(paginatedList, userArticleCriteria, queryParameters);
+
+        List<JSONObject> articlesJson = articles.stream()
+                .map(ArticleAssembler::asJson)
+                .collect(Collectors.toList());
+
         JSONObject response = new JSONObject();
-
-        List<JSONObject> articles = new ArrayList<JSONObject>();
-        for (UserArticleDto userArticle : paginatedList.getResultList()) {
-            articles.add(ArticleAssembler.asJson(userArticle));
-        }
-        response.put("articles", articles);
-
+        response.put("articles", articlesJson);
         return Response.ok().entity(response).build();
     }
 
-    /**
-     * Marks all articles as read.
-     * 
-     * @return Response
-     */
     @POST
     @Path("/read")
     @Produces(MediaType.APPLICATION_JSON)
@@ -96,23 +73,16 @@ public class AllResource extends BaseResource {
         if (!authenticate()) {
             throw new ForbiddenClientException();
         }
-        
-        // Marks all articles of this user as read
+
         UserArticleDao userArticleDao = new UserArticleDao();
-        userArticleDao.markAsRead(new UserArticleCriteria()
-                .setUserId(principal.getId())
-                .setSubscribed(true));
-
         FeedSubscriptionDao feedSubscriptionDao = new FeedSubscriptionDao();
-        for (FeedSubscriptionDto feedSubscrition : feedSubscriptionDao.findByCriteria(new FeedSubscriptionCriteria()
-                .setUserId(principal.getId()))) {
-            feedSubscriptionDao.updateUnreadCount(feedSubscrition.getId(), 0);
-        }
 
-        // Always return ok
+        userArticleDao.markAllAsRead(principal.getId());
+        feedSubscriptionDao.updateAllUnreadCounts(principal.getId());
+
         JSONObject response = new JSONObject();
         response.put("status", "ok");
         return Response.ok().entity(response).build();
     }
-
 }
+```

@@ -1,5 +1,6 @@
-package com.sismics.reader.rest;
+**Refactored Code:**
 
+```java
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableMultimap;
 import org.codehaus.jettison.json.JSONArray;
@@ -7,108 +8,128 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Test;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotNull;
+import staticjunit.framework.Assert.assertEquals;
+import staticjunit.framework.Assert.assertNotNull;
 
 /**
  * Exhaustive test of the starred resource.
- * 
+ *
  * @author jtremeaux
  */
 public class TestStarredResource extends BaseJerseyTest {
+
+    private static final String URL_SUBSCRIPTION = "/subscription";
+    private static final String URL_ALL = "/all";
+    private static final String URL_STARRED = "/starred";
+    private static final String URL_STARRED_ADD_ONE = "/starred/";
+    private static final String URL_STARRED_ADD_MULTIPLE = "/starred/star";
+    private static final String URL_STARRED_DELETE_ONE = "/starred/";
+    private static final String URL_STARRED_DELETE_MULTIPLE = "/starred/unstar";
+
+    private static final String PAYLOAD_URL = "url";
+    private static final String PAYLOAD_ID = "id";
+    private static final String JSON_RESPONSE_ARTICLES = "articles";
+    private static final String JSON_RESPONSE_ID = "id";
+
     /**
      * Test of the all resource.
-     * 
      */
     @Test
     public void testStarredResource() throws JSONException {
-        // Create user starred1
-        createUser("starred1");
-        login("starred1");
+        JSONObject json;
+        JSONArray articles;
+        String articleId;
 
-        // Subscribe to korben.info
-        PUT("/subscription", ImmutableMap.of("url", "http://localhost:9997/http/feeds/korben.xml"));
-        assertIsOk();
-        JSONObject json = getJsonResult();
-        String subscription1Id = json.optString("id");
-        assertNotNull(subscription1Id);
-        
+        // Create user and subscribe to feed
+        String userId = createUserAndSubscribe();
+
         // Check the all resource
-        GET("/all");
-        assertIsOk();
-        json = getJsonResult();
-        JSONArray articles = json.optJSONArray("articles");
-        assertNotNull(articles);
+        articles = getArticles(URL_ALL);
         assertEquals(10, articles.length());
-        JSONObject article0 = articles.getJSONObject(0);
-        String article0Id = article0.getString("id");
-        JSONObject article1 = articles.getJSONObject(1);
-        String article1Id = article1.getString("id");
+        articleId = articles.getJSONObject(0).getString(JSON_RESPONSE_ID);
 
-        // Create a new starred article
-        PUT("/starred/" + article0Id);
-        assertIsOk();
+        // Create starred articles
+        addStarredArticle(URL_STARRED_ADD_ONE, articleId);
+        addStarredArticle(URL_STARRED_ADD_ONE, articleId);
 
-        // Create a new starred article
-        PUT("/starred/" + article1Id);
-        assertIsOk();
-
-        // Check the starred resource
-        GET("/starred");
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
+        // Check starred resource
+        articles = getArticles(URL_STARRED);
         assertEquals(2, articles.length());
-        JSONObject articleAfter = articles.getJSONObject(0);
-        String articleAfterId = articleAfter.getString("id");
 
         // Check pagination
-        GET("/starred", ImmutableMap.of("after_article", articleAfterId));
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
+        articles = getArticles(URL_STARRED, ImmutableMap.of("after_article", articleId));
         assertEquals(1, articles.length());
 
-        // Delete a starred article
-        DELETE("/starred/" + article0Id);
-        assertIsOk();
+        // Delete starred article
+        deleteStarredArticle(URL_STARRED_DELETE_ONE, articleId);
 
-        // Check the starred resource
-        GET("/starred");
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
+        // Check starred resource
+        articles = getArticles(URL_STARRED);
         assertEquals(1, articles.length());
-        
+
         // Delete multiple starred articles
-        POST("/starred/unstar", ImmutableMultimap.of(
-                "id", article0Id,
-                "id", article1Id));
-        assertIsOk();
+        deleteStarredArticles(URL_STARRED_DELETE_MULTIPLE, ImmutableMultimap.of(PAYLOAD_ID, articleId));
 
-        // Check the starred resource
-        GET("/starred");
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
+        // Check starred resource
+        articles = getArticles(URL_STARRED);
         assertEquals(0, articles.length());
-        
-        // Create multiple starred articles
-        POST("/starred/star", ImmutableMultimap.of(
-                "id", article0Id,
-                "id", article1Id));
-        assertIsOk();
 
-        // Check the starred resource
-        GET("/starred");
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
+        // Create multiple starred article
+        addStarredArticles(URL_STARRED_ADD_MULTIPLE, ImmutableMultimap.of(PAYLOAD_ID, articleId));
+
+        // Check starred resource
+        articles = getArticles(URL_STARRED);
         assertEquals(2, articles.length());
     }
+
+    private void addStarredArticle(String url, String articleId) throws JSONException {
+        PUT(url + articleId);
+        assertStatusCodeIsOk();
+    }
+
+    private void addStarredArticles(String url, ImmutableMultimap<String, String> payload) throws JSONException {
+        POST(url, payload);
+        assertStatusCodeIsOk();
+    }
+
+    private void deleteStarredArticle(String url, String articleId) throws JSONException {
+        DELETE(url + articleId);
+        assertStatusCodeIsOk();
+    }
+
+    private void deleteStarredArticles(String url, ImmutableMultimap<String, String> payload) throws JSONException {
+        POST(url, payload);
+        assertStatusCodeIsOk();
+    }
+
+    private String createUserAndSubscribe() throws JSONException {
+        JSONObject json;
+        String subscriptionId;
+
+        // Create user
+        String userId = createUser("starred1");
+        login(userId);
+
+        // Subscribe to feed
+        PUT(URL_SUBSCRIPTION, ImmutableMap.of(PAYLOAD_URL, "http://localhost:9997/http/feeds/korben.xml"));
+        assertStatusCodeIsOk();
+        json = getJsonResult();
+        subscriptionId = json.optString(JSON_RESPONSE_ID);
+        assertNotNull(subscriptionId);
+
+        return userId;
+    }
+
+    private JSONArray getArticles(String url) throws JSONException {
+        GET(url);
+        assertStatusCodeIsOk();
+        return getJsonResult().optJSONArray(JSON_RESPONSE_ARTICLES);
+    }
+
+    private JSONArray getArticles(String url, ImmutableMap<String, String> params) throws JSONException {
+        GET(url, params);
+        assertStatusCodeIsOk();
+        return getJsonResult().optJSONArray(JSON_RESPONSE_ARTICLES);
+    }
 }
+```

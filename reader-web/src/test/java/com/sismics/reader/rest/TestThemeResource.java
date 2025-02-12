@@ -1,5 +1,4 @@
-package com.sismics.reader.rest;
-
+```java
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
@@ -9,16 +8,15 @@ import static junit.framework.Assert.assertTrue;
 
 /**
  * Test the theme resource.
- * 
+ *
  * @author jtremeaux
  */
 public class TestThemeResource extends BaseJerseyTest {
     /**
-     * Test the theme resource.
-     * 
+     * Test the GET themes.
      */
     @Test
-    public void testThemeResource() throws JSONException {
+    public void testGetThemes() throws JSONException {
         GET("/theme");
         assertIsOk();
         JSONObject json = getJsonResult();
@@ -26,3 +24,4 @@ public class TestThemeResource extends BaseJerseyTest {
         assertTrue(theme.length() > 0);
     }
 }
+```

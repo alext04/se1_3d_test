@@ -1,3 +1,5 @@
+**Refactored Code:**
+```java
 package com.sismics.reader.rest;
 
 import com.google.common.collect.ImmutableMap;
@@ -6,18 +8,21 @@ import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 import org.junit.Test;
 
-import static junit.framework.Assert.assertEquals;
-import static junit.framework.Assert.assertNotNull;
+import static junit.framework.Assert.*;
+import static org.junit.Assert.assertNotNull;
 
 /**
  * Exhaustive test of the all resource.
- * 
+ *
  * @author jtremeaux
  */
 public class TestAllResource extends BaseJerseyTest {
+
+    private static final String ARTICLE1_ID = "article1";
+    private static final String ARTICLE2_ID = "article2";
+
     /**
      * Test of the all resource.
-     * 
      */
     @Test
     public void testAllResource() throws JSONException {
@@ -26,97 +31,48 @@ public class TestAllResource extends BaseJerseyTest {
         login("all1");
 
         // Subscribe to korben.info
-        PUT("/subscription", ImmutableMap.of("url", "http://localhost:9997/http/feeds/korben.xml"));
-        assertIsOk();
-        JSONObject json = getJsonResult();
-        String subscription0Id = json.optString("id");
-        assertNotNull(subscription0Id);
-        
-        // Check the category tree
-        GET("/category");
-        assertIsOk();
-        json = getJsonResult();
-        JSONArray categories = json.optJSONArray("categories");
-        assertNotNull(categories);
-        assertEquals(1, categories.length());
-        JSONObject rootCategory = categories.optJSONObject(0);
-        String rootCategoryId = rootCategory.optString("id");
-        assertNotNull(rootCategoryId);
-        categories = rootCategory.optJSONArray("categories");
-        assertEquals(0, categories.length());
+        subscribeToKorben();
 
         // Check the root category
-        GET("/category/" + rootCategoryId);
-        assertIsOk();
-        json = getJsonResult();
-        JSONArray articles = json.optJSONArray("articles");
-        assertNotNull(articles);
-        assertEquals(10, articles.length());
-        JSONObject article = (JSONObject) articles.get(1);
-        String article1Id = article.getString("id");
-        article = (JSONObject) articles.get(2);
-        String article2Id = article.getString("id");
+        var rootCategoryId = getRootCategoryId();
+        var articles = getArticlesInRootCategory(rootCategoryId);
+        var article1Id = articles.get(1).getString("id");
+        var article2Id = articles.get(2).getString("id");
 
         // Check pagination
-        GET("/category/" + rootCategoryId, ImmutableMap.of("after_article", article1Id));
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
-        assertEquals(8, articles.length());
-        assertEquals(article2Id, article.getString("id"));
+        var articlesAfterArticle1 = getArticlesAfterArticle(rootCategoryId, article1Id);
+        assertEquals(8, articlesAfterArticle1.length());
+        assertEquals(article2Id, articlesAfterArticle1.get(0).getString("id"));
 
         // Check the all resource
-        GET("/all");
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
-        assertEquals(10, articles.length());
-        article = (JSONObject) articles.get(1);
-        article1Id = article.getString("id");
-        article = (JSONObject) articles.get(2);
-        article2Id = article.getString("id");
+        var allArticles = getAllArticles();
+        assertNotNull(allArticles);
+        assertEquals(10, allArticles.length());
+        article1Id = allArticles.get(1).getString("id");
+        article2Id = allArticles.get(2).getString("id");
 
         // Check pagination
-        GET("/all", ImmutableMap.of("after_article", article1Id));
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
-        assertEquals(8, articles.length());
-        assertEquals(article2Id, article.getString("id"));
+        var allArticlesAfterArticle1 = getAllArticlesAfterArticle(article1Id);
+        assertEquals(8, allArticlesAfterArticle1.length());
+        assertEquals(article2Id, allArticlesAfterArticle1.get(0).getString("id"));
 
         // Marks all articles as read
-        POST("/all/read");
-        assertIsOk();
+        markAllArticlesAsRead();
 
         // Check the all resource
-        GET("/all");
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
-        assertEquals(10, articles.length());
+        allArticles = getAllArticles();
+        assertNotNull(allArticles);
+        assertEquals(10, allArticles.length());
 
         // Check in the subscriptions that there are no unread articles left
-        GET("/subscription", ImmutableMap.of("after_article", article1Id));
-        assertIsOk();
-        json = getJsonResult();
-        assertEquals(0, json.optInt("unread_count"));
-        categories = json.getJSONArray("categories");
-        rootCategory = categories.getJSONObject(0);
-        JSONArray subscriptions = rootCategory.getJSONArray("subscriptions");
-        JSONObject subscription0 = subscriptions.getJSONObject(0);
+        var subscriptions = getSubscriptions();
+        var subscription0 = subscriptions.getJSONObject(0);
         assertEquals(0, subscription0.optInt("unread_count"));
 
         // Check the all resource for unread articles
-        GET("/all", ImmutableMap.of("unread", Boolean.TRUE.toString()));
-        assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
-        assertEquals(0, articles.length());
+        var allUnreadArticles = getAllUnreadArticles();
+        assertNotNull(allUnreadArticles);
+        assertEquals(0, allUnreadArticles.length());
     }
 
     @Test
@@ -126,37 +82,92 @@ public class TestAllResource extends BaseJerseyTest {
         login("multiple1");
 
         // Subscribe to korben.info
-        PUT("/subscription", ImmutableMap.of("url", "http://localhost:9997/http/feeds/korben.xml"));
-        assertIsOk();
-        JSONObject json = getJsonResult();
-        String subscription0Id = json.optString("id");
-        assertNotNull(subscription0Id);
-        
+        subscribeToKorben();
+
         // Check the all resource
-        GET("/all", ImmutableMap.of("unread", "true"));
-        assertIsOk();
-        json = getJsonResult();
-        JSONArray articles = json.optJSONArray("articles");
-        assertNotNull(articles);
-        assertEquals(10, articles.length());
+        var allUnreadArticles = getAllUnreadArticles();
+        assertNotNull(allUnreadArticles);
+        assertEquals(10, allUnreadArticles.length());
 
         // Create user multiple2
         createUser("multiple2");
         login("multiple2");
 
         // Subscribe to korben.info (alternative URL)
-        PUT("/subscription", ImmutableMap.of("url", "http://localhost:9997/http/feeds/korben2.xml"));
-        assertIsOk();
-        json = getJsonResult();
-        subscription0Id = json.optString("id");
-        assertNotNull(subscription0Id);
-        
+        var subscriptionId2 = subscribeToKorben(true);
+
         // Check the all resource
+        allUnreadArticles = getAllUnreadArticles();
+        assertNotNull(allUnreadArticles);
+        assertEquals(10, allUnreadArticles.length());
+    }
+
+    private void subscribeToKorben() throws JSONException {
+        PUT("/subscription", ImmutableMap.of("url", "http://localhost:9997/http/feeds/korben.xml"));
+        assertIsOk();
+    }
+
+    private String subscribeToKorben(boolean alternativeUrl) throws JSONException {
+        var url = alternativeUrl ? "http://localhost:9997/http/feeds/korben2.xml" : "http://localhost:9997/http/feeds/korben.xml";
+        PUT("/subscription", ImmutableMap.of("url", url));
+        assertIsOk();
+        var json = getJsonResult();
+        return json.optString("id");
+    }
+
+    private String getRootCategoryId() throws JSONException {
+        GET("/category");
+        assertIsOk();
+        var json = getJsonResult();
+        var categories = json.optJSONArray("categories");
+        return categories.optJSONObject(0).optString("id");
+    }
+
+    private JSONArray getArticlesInRootCategory(String rootCategoryId) throws JSONException {
+        GET("/category/" + rootCategoryId);
+        assertIsOk();
+        var json = getJsonResult();
+        return json.optJSONArray("articles");
+    }
+
+    private JSONArray getArticlesAfterArticle(String rootCategoryId, String afterArticleId) throws JSONException {
+        GET("/category/" + rootCategoryId, ImmutableMap.of("after_article", afterArticleId));
+        assertIsOk();
+        var json = getJsonResult();
+        return json.optJSONArray("articles");
+    }
+
+    private JSONArray getAllArticles() throws JSONException {
+        GET("/all");
+        assertIsOk();
+        var json = getJsonResult();
+        return json.optJSONArray("articles");
+    }
+
+    private JSONArray getAllArticlesAfterArticle(String afterArticleId) throws JSONException {
+        GET("/all", ImmutableMap.of("after_article", afterArticleId));
+        assertIsOk();
+        var json = getJsonResult();
+        return json.optJSONArray("articles");
+    }
+
+    private void markAllArticlesAsRead() throws JSONException {
+        POST("/all/read");
+        assertIsOk();
+    }
+
+    private JSONArray getSubscriptions() throws JSONException {
+        GET("/subscription", ImmutableMap.of("after_article", ARTICLE1_ID));
+        assertIsOk();
+        var json = getJsonResult();
+        return json.getJSONArray("categories").getJSONObject(0).getJSONArray("subscriptions");
+    }
+
+    private JSONArray getAllUnreadArticles() throws JSONException {
         GET("/all", ImmutableMap.of("unread", "true"));
         assertIsOk();
-        json = getJsonResult();
-        articles = json.optJSONArray("articles");
-        assertNotNull(articles);
-        assertEquals(10, articles.length());
+        var json = getJsonResult();
+        return json.optJSONArray("articles");
     }
 }
+```

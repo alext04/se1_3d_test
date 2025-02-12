@@ -1,9 +1,11 @@
+```java
 package com.sismics.reader.rest;
 
 import com.sun.jersey.multipart.FormDataBodyPart;
 import com.sun.jersey.multipart.FormDataMultiPart;
 import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONObject;
+import org.junit.Before;
 import org.junit.Test;
 
 import javax.ws.rs.core.MediaType;
@@ -13,27 +15,34 @@ import java.io.InputStream;
 import static junit.framework.Assert.assertEquals;
 import static junit.framework.Assert.assertNotNull;
 
-/**
- * Exhaustive test of the job resource.
- * 
- * @author jtremeaux
- */
 public class TestJobResource extends BaseJerseyTest {
 
-    /**
-     * Test of the job resource.
-     * 
-     */
+    private String job1UserId;
+    private String job2UserId;
+
+    @Before
+    public void setUp() throws Exception {
+        job1UserId = createUser("job1");
+        job2UserId = createUser("job2");
+    }
+
     @Test
     public void testJobResource() throws Exception {
-        // Create user job1
-        createUser("job1");
+        importOpml(job1UserId);
+        checkUserJobs(job1UserId);
+        checkForbiddenDeleteJob(job2UserId, job1UserId);
+        deleteJob(job1UserId);
+        checkNoJobs(job1UserId);
+    }
 
-        // Create user job2
-        createUser("job2");
+    private void checkForbiddenDeleteJob(String userId, String jobOwnerId) throws Exception {
+        login(userId);
+        DELETE("/job/" + jobOwnerId);
+        assertIsBadRequest();
+    }
 
-        // Import an OPML file
-        login("job1");
+    private void importOpml(String userId) throws Exception {
+        login(userId);
         FormDataMultiPart form = new FormDataMultiPart();
         InputStream track = this.getClass().getResourceAsStream("/import/greader_subscriptions.xml");
         FormDataBodyPart fdp = new FormDataBodyPart("file",
@@ -42,8 +51,9 @@ public class TestJobResource extends BaseJerseyTest {
         form.bodyPart(fdp);
         PUT("/subscription/import", form);
         assertIsOk();
+    }
 
-        // Check the user's job
+    private void checkUserJobs(String userId) throws Exception {
         GET("/user");
         assertIsOk();
         JSONObject json = getJsonResult();
@@ -61,26 +71,25 @@ public class TestJobResource extends BaseJerseyTest {
         assertEquals(0, job.optInt("starred_success"));
         assertEquals(0, job.optInt("starred_failure"));
         assertEquals(0, job.optInt("starred_total"));
+    }
 
-        // User job2 deletes user1's job KO : forbidden
-        login("job2");
+    private void deleteJob(String userId) throws Exception {
+        login(userId);
+        JSONObject json = getJsonResult();
+        JSONArray jobs = json.getJSONArray("jobs");
+        String jobId = ((JSONObject) jobs.get(0)).getString("id");
         DELETE("/job/" + jobId);
-        assertIsBadRequest(); // TODO return forbidden status in this case
-        json = getJsonResult();
-        assertEquals("ForbiddenError", json.getString("type"));
-
-        // User job1 deletes his job
-        login("job1");
-        DELETE("/job/" + jobId);
+        assertIsOk();
         json = getJsonResult();
         assertEquals("ok", json.getString("status"));
-        assertIsOk();
+    }
 
-        // Check that the job was deleted
+    private void checkNoJobs(String userId) throws Exception {
         GET("/user");
         assertIsOk();
-        json = getJsonResult();
-        jobs = json.getJSONArray("jobs");
+        JSONObject json = getJsonResult();
+        JSONArray jobs = json.getJSONArray("jobs");
         assertEquals(0, jobs.length());
     }
 }
+```

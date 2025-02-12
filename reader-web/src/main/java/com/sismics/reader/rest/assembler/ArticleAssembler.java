@@ -1,5 +1,6 @@
-package com.sismics.reader.rest.assembler;
+**Refactored Code:**
 
+```java
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
@@ -21,10 +22,7 @@ public class ArticleAssembler {
     public static JSONObject asJson(UserArticleDto userArticle) throws JSONException {
         JSONObject userArticleJson = new JSONObject();
         userArticleJson.put("id", userArticle.getId());
-        JSONObject subscription = new JSONObject();
-        subscription.put("id", userArticle.getFeedSubscriptionId());
-        subscription.put("title", userArticle.getFeedSubscriptionTitle() != null ? userArticle.getFeedSubscriptionTitle() : userArticle.getFeedTitle());
-        userArticleJson.put("subscription", subscription);
+        userArticleJson.put("subscription", getSubscriptionJson(userArticle));
         userArticleJson.put("title", userArticle.getArticleTitle());
         userArticleJson.put("url", userArticle.getArticleUrl());
         userArticleJson.put("date", userArticle.getArticlePublicationTimestamp());
@@ -33,14 +31,26 @@ public class ArticleAssembler {
         userArticleJson.put("comment_url", userArticle.getArticleCommentUrl());
         userArticleJson.put("comment_count", userArticle.getArticleCommentCount());
         if (userArticle.getArticleEnclosureUrl() != null) {
-            JSONObject enclosure = new JSONObject();
-            enclosure.put("url", userArticle.getArticleEnclosureUrl());
-            enclosure.put("length", userArticle.getArticleEnclosureLength());
-            enclosure.put("type", userArticle.getArticleEnclosureType());
-            userArticleJson.put("enclosure", enclosure);
+            userArticleJson.put("enclosure", getEnclosureJson(userArticle));
         }
         userArticleJson.put("is_read", userArticle.getReadTimestamp() != null);
         userArticleJson.put("is_starred", userArticle.getStarTimestamp() != null);
         return userArticleJson;
     }
+
+    private static JSONObject getSubscriptionJson(UserArticleDto userArticle) throws JSONException {
+        JSONObject subscription = new JSONObject();
+        subscription.put("id", userArticle.getFeedSubscriptionId());
+        subscription.put("title", userArticle.getFeedSubscriptionTitle() != null ? userArticle.getFeedSubscriptionTitle() : userArticle.getFeedTitle());
+        return subscription;
+    }
+
+    private static JSONObject getEnclosureJson(UserArticleDto userArticle) throws JSONException {
+        JSONObject enclosure = new JSONObject();
+        enclosure.put("url", userArticle.getArticleEnclosureUrl());
+        enclosure.put("length", userArticle.getArticleEnclosureLength());
+        enclosure.put("type", userArticle.getArticleEnclosureType());
+        return enclosure;
+    }
 }
+```

@@ -1,11 +1,14 @@
+**Refactored Code:**
+```java
 package com.sismics.reader.rest.resource;
 
 import java.io.IOException;
 import java.io.OutputStream;
-import java.io.OutputStreamWriter;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
 
+import javax.json.Json;
+import javax.json.stream.JsonGenerator;
 import javax.ws.rs.Produces;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
@@ -13,45 +16,37 @@ import javax.ws.rs.core.MultivaluedMap;
 import javax.ws.rs.ext.MessageBodyWriter;
 import javax.ws.rs.ext.Provider;
 
-import org.codehaus.jettison.json.JSONException;
-import org.codehaus.jettison.json.JSONObject;
-
-import com.sun.jersey.core.util.ReaderWriter;
-
 /**
- * MessageBodyWriter personalized to write JSON despite the text/plain MIME type.
- * Used in particuler in return of a posted form, since IE doesn't knw how to read the application/json MIME type.
- * 
+ * MessageBodyWriter to write JSON despite the text/plain MIME type.
+ * Used in particular in return of a posted form.
+ *
  * @author bgamard
  */
 @Provider
 @Produces(MediaType.TEXT_PLAIN)
-public class TextPlainMessageBodyWriter implements
-        MessageBodyWriter<JSONObject> {
+public class TextPlainBodyWriter implements MessageBodyWriter<Object> {
+
     @Override
     public boolean isWriteable(Class<?> type, Type genericType,
-            Annotation[] annotations, MediaType mediaType) {
+                              Annotation[] annotations, MediaType mediaType) {
         return true;
     }
 
     @Override
-    public long getSize(JSONObject array, Class<?> type, Type genericType,
-            Annotation[] annotations, MediaType mediaType) {
+    public long getSize(Object object, Class<?> type, Type genericType,
+                       Annotation[] annotations, MediaType mediaType) {
         return -1;
     }
 
     @Override
-    public void writeTo(JSONObject jsonObject, Class<?> type, Type genericType,
-            Annotation[] annotations, MediaType mediaType,
-            MultivaluedMap<String, Object> httpHeaders,
-            OutputStream entityStream) throws IOException,
-            WebApplicationException {
-        try {
-            OutputStreamWriter writer = new OutputStreamWriter(entityStream, ReaderWriter.getCharset(mediaType));
-            jsonObject.write(writer);
-            writer.flush();
-        } catch (JSONException e) {
-            throw new WebApplicationException(e);
+    public void writeTo(Object object, Class<?> type, Type genericType,
+                       Annotation[] annotations, MediaType mediaType,
+                       MultivaluedMap<String, Object> httpHeaders,
+                       OutputStream entityStream)
+            throws IOException, WebApplicationException {
+        try (JsonGenerator generator = Json.createGenerator(entityStream)) {
+            generator.write(object);
         }
     }
 }
+```

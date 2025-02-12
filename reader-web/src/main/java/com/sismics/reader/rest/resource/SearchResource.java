@@ -1,7 +1,10 @@
+Refactored code:
+
+```java
 package com.sismics.reader.rest.resource;
 
 import com.sismics.reader.core.dao.jpa.dto.UserArticleDto;
-import com.sismics.reader.core.model.context.AppContext;
+import com.sismics.reader.core.service.ArticleSearchService;
 import com.sismics.reader.core.service.IndexingService;
 import com.sismics.reader.core.util.jpa.PaginatedList;
 import com.sismics.reader.rest.assembler.ArticleAssembler;
@@ -24,7 +27,8 @@ import java.util.List;
  */
 @Path("/search")
 public class SearchResource extends BaseResource {
-    
+    private final ArticleSearchService articleSearchService = new ArticleSearchService();
+
     /**
      * Returns articles matching a search query.
      * 
@@ -47,13 +51,8 @@ public class SearchResource extends BaseResource {
         ValidationUtil.validateRequired(query, "query");
         
         // Search in index
-        IndexingService indexingService = AppContext.getInstance().getIndexingService();
-        PaginatedList<UserArticleDto> paginatedList;
-        try {
-            paginatedList = indexingService.searchArticles(principal.getId(), query, offset, limit);
-        } catch (Exception e) {
-            throw new ServerException("SearchError", "Error searching articles", e);
-        }
+        PaginatedList<UserArticleDto> paginatedList = articleSearchService.searchArticles(principal.getId(),
+                query, offset, limit);
         
         // Build the response
         JSONObject response = new JSONObject();
@@ -68,3 +67,4 @@ public class SearchResource extends BaseResource {
         return Response.ok().entity(response).build();
     }
 }
+```

@@ -1,8 +1,8 @@
-package com.sismics.reader.rest.resource;
-
+```java
 import com.sismics.reader.rest.dao.ThemeDao;
 import com.sismics.rest.exception.ServerException;
 import com.sismics.util.EnvironmentUtil;
+import org.codehaus.jettison.json.JSONArray;
 import org.codehaus.jettison.json.JSONException;
 import org.codehaus.jettison.json.JSONObject;
 
@@ -28,7 +28,7 @@ public class ThemeResource extends BaseResource {
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
-    public Response list() throws JSONException {
+    public Response list() {
         ThemeDao themeDao = new ThemeDao();
         List<String> themeList;
         try {
@@ -37,13 +37,22 @@ public class ThemeResource extends BaseResource {
             throw new ServerException("UnknownError", "Error getting theme list", e);
         }
         JSONObject response = new JSONObject();
-        List<JSONObject> items = new ArrayList<JSONObject>();
+        JSONArray items = new JSONArray();
         for (String theme : themeList) {
-            JSONObject item = new JSONObject();
-            item.put("id", theme);
-            items.add(item);
+            try {
+                JSONObject item = new JSONObject();
+                item.put("id", theme);
+                items.put(item);
+            } catch (JSONException e) {
+                // Ignore and continue
+            }
         }
-        response.put("themes", items);
+        try {
+            response.put("themes", items);
+        } catch (JSONException e) {
+            // Ignore and return empty response
+        }
         return Response.ok().entity(response).build();
     }
 }
+```
