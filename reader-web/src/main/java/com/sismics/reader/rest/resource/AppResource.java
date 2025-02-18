@@ -1,3 +1,6 @@
+**Refactored Code:**
+
+```java
 package com.sismics.reader.rest.resource;
 
 import com.sismics.reader.core.model.context.AppContext;
@@ -31,6 +34,8 @@ import java.util.ResourceBundle;
  */
 @Path("/app")
 public class AppResource extends BaseResource {
+    private static final Logger logger = Logger.getRootLogger();
+
     /**
      * Return the information about the application.
      * 
@@ -39,6 +44,7 @@ public class AppResource extends BaseResource {
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response version() throws JSONException {
+        // Extract version information from configuration bundle
         ResourceBundle configBundle = ConfigUtil.getConfigBundle();
         String currentVersion = configBundle.getString("api.current_version");
         String minVersion = configBundle.getString("api.min_version");
@@ -50,7 +56,7 @@ public class AppResource extends BaseResource {
         response.put("free_memory", Runtime.getRuntime().freeMemory());
         return Response.ok().entity(response).build();
     }
-    
+
     /**
      * Retrieve the application logs.
      * 
@@ -64,7 +70,7 @@ public class AppResource extends BaseResource {
     @GET
     @Path("log")
     @Produces(MediaType.APPLICATION_JSON)
-    public Response log(
+    public Response getLogs(
             @QueryParam("level") String level,
             @QueryParam("tag") String tag,
             @QueryParam("message") String message,
@@ -75,22 +81,22 @@ public class AppResource extends BaseResource {
         }
         checkBaseFunction(BaseFunction.ADMIN);
 
-        // Get the memory appender
-        Logger logger = Logger.getRootLogger();
+        // Get memory appender
         Appender appender = logger.getAppender("MEMORY");
-        if (appender == null || !(appender instanceof MemoryAppender)) {
+        if (!(appender instanceof MemoryAppender)) {
             throw new ServerException("ServerError", "MEMORY appender not configured");
         }
         MemoryAppender memoryAppender = (MemoryAppender) appender;
-        
+
         // Find the logs
         LogCriteria logCriteria = new LogCriteria()
                 .setLevel(StringUtils.stripToNull(level))
                 .setTag(StringUtils.stripToNull(tag))
                 .setMessage(StringUtils.stripToNull(message));
-        
+
         PaginatedList<LogEntry> paginatedList = PaginatedLists.create(limit, offset);
         memoryAppender.find(logCriteria, paginatedList);
+
         JSONObject response = new JSONObject();
         List<JSONObject> logs = new ArrayList<JSONObject>();
         for (LogEntry logEntry : paginatedList.getResultList()) {
@@ -103,10 +109,10 @@ public class AppResource extends BaseResource {
         }
         response.put("total", paginatedList.getResultCount());
         response.put("logs", logs);
-        
+
         return Response.ok().entity(response).build();
     }
-    
+
     /**
      * Destroy and rebuild articles index.
      * 
@@ -120,7 +126,7 @@ public class AppResource extends BaseResource {
             throw new ForbiddenClientException();
         }
         checkBaseFunction(BaseFunction.ADMIN);
-        
+
         JSONObject response = new JSONObject();
         try {
             AppContext.getInstance().getIndexingService().rebuildIndex();
@@ -130,27 +136,28 @@ public class AppResource extends BaseResource {
         response.put("status", "ok");
         return Response.ok().entity(response).build();
     }
-    
+
     /**
-     * Attempt to map a port to the gateway.
+     * Attempt to map a port using UPnP.
      * 
      * @return Response
      */
     @POST
-    @Path("map_port")
+    @Path("map-port")
     @Produces(MediaType.APPLICATION_JSON)
     public Response mapPort() throws JSONException {
         if (!authenticate()) {
             throw new ForbiddenClientException();
         }
         checkBaseFunction(BaseFunction.ADMIN);
-        
+
         JSONObject response = new JSONObject();
         if (!NetworkUtil.mapTcpPort(request.getServerPort())) {
             throw new ServerException("NetworkError", "Error mapping port using UPnP");
         }
-        
+
         response.put("status", "ok");
         return Response.ok().entity(response).build();
     }
 }
+```
