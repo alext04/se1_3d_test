@@ -10,34 +10,43 @@ import javax.ws.rs.Path;
 import javax.ws.rs.Produces;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
-import java.util.ArrayList;
 import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Locale REST resources.
- * 
+ *
  * @author jtremeaux
  */
 @Path("/locale")
 public class LocaleResource extends BaseResource {
+
+    private LocaleDao localeDao = new LocaleDao();
+
     /**
      * Returns the list of all locales.
-     * 
+     *
      * @return Response
      */
     @GET
     @Produces(MediaType.APPLICATION_JSON)
     public Response list() throws JSONException {
-        LocaleDao localeDao = new LocaleDao();
         List<Locale> localeList = localeDao.findAll();
+
+        List<JSONObject> items = localeList.stream()
+                .map(locale -> createLocaleJson(locale))
+                .collect(Collectors.toList());
+
         JSONObject response = new JSONObject();
-        List<JSONObject> items = new ArrayList<JSONObject>();
-        for (Locale locale : localeList) {
-            JSONObject item = new JSONObject();
-            item.put("id", locale.getId());
-            items.add(item);
-        }
         response.put("locales", items);
+
         return Response.ok().entity(response).build();
+    }
+
+    private JSONObject createLocaleJson(Locale locale) throws JSONException {
+        JSONObject item = new JSONObject();
+        item.put("id", locale.getId());
+
+        return item;
     }
 }
